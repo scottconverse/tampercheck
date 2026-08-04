@@ -126,7 +126,7 @@ def analyze(diff_text: str) -> list[Finding]:
                         removed_assertions += 1
                 if not line.is_added:
                     continue
-                text = line.value.rstrip("\n")
+                text = line.value.rstrip("\r\n")
 
                 if is_test and lang in ASSERTION_RE and ASSERTION_RE[lang].search(text):
                     trivial = TRIVIAL_ASSERTION_RE.get(lang)
