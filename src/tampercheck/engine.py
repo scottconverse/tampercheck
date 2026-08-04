@@ -108,7 +108,11 @@ def analyze(diff_text: str) -> list[Finding]:
                 kind="test-deleted", severity="critical", path=path, line=None,
                 evidence="test file deleted",
                 rationale="Deleting a test removes its coverage entirely; a "
-                          "green run afterwards proves less than it did before.",
+                          "green run afterwards proves less than it did before. "
+                          "To justify a legitimate deletion, add a comment on "
+                          "any added line in this diff naming the file: "
+                          f"`tampercheck: allow {basename} <reason>` "
+                          f"(or run with --allow test-deleted:{basename}).",
                 allowed=reason is not None,
                 reason=reason or "",
             ))

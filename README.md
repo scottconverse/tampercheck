@@ -73,6 +73,32 @@ The finding is then reported as `ALLOWED` with your reason and does not fail
 the run. The justification travels with the change, visible to whoever
 reviews it — unlike an external ignore-file, it cannot drift.
 
+**Justifying a deletion.** A deleted file has no lines to annotate, so a
+`test-deleted` finding accepts the marker on *any added line in the diff* —
+as long as the reason names the deleted file (that binding is what stops one
+stray comment from waving through unrelated deletions):
+
+```python
+# in the replacement file, or any file in the same change:
+# tampercheck: allow test_cart.py superseded by test_cart_v2.py
+```
+
+The finding's own output prints this remedy with the real filename, so you
+never have to remember the contract.
+
+**The `--allow` flag.** For one-off local runs, or a standing exception you
+want reviewed in the workflow file rather than the diff:
+
+```sh
+tampercheck --allow test-deleted:test_cart.py
+```
+
+Repeatable; `KIND:PATHFRAG` form. Prefer the in-diff marker — it keeps the
+justification attached to the change it excuses. There is deliberately no
+commit-message trailer: tampercheck reads diffs, and its stdin and `--pr`
+input modes never see a commit message, so a trailer would silently work in
+only one of the three input modes.
+
 ## Measured false-positive rate
 
 Patterns were tuned against **1,331 real historical commits** from three

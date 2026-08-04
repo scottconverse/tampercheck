@@ -89,7 +89,23 @@ def main(argv: list[str] | None = None) -> int:
                         default="high",
                         help="lowest severity that causes exit code 1 "
                              "(default: high)")
+    parser.add_argument("--allow", action="append", default=[],
+                        metavar="KIND:PATHFRAG",
+                        help="treat findings of KIND whose path contains "
+                             "PATHFRAG as justified (repeatable), e.g. "
+                             "--allow test-deleted:test_cart.py. Prefer the "
+                             "in-diff marker; this flag exists for one-off "
+                             "runs and workflow-reviewed standing exceptions.")
     args = parser.parse_args(argv)
+
+    allows: list[tuple[str, str]] = []
+    for spec in args.allow:
+        kind, sep, frag = spec.partition(":")
+        if not sep or not kind or not frag:
+            print(f"tampercheck error: --allow expects KIND:PATHFRAG, got {spec!r}",
+                  file=sys.stderr)
+            return 2
+        allows.append((kind, frag))
 
     try:
         diff_text = _read_diff(args)
@@ -97,6 +113,14 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:  # noqa: BLE001 — anything here is a tool failure
         print(f"tampercheck error: {exc}", file=sys.stderr)
         return 2
+
+    for f in findings:
+        if not f.allowed:
+            for kind, frag in allows:
+                if f.kind == kind and frag in f.path:
+                    f.allowed = True
+                    f.reason = f"--allow {kind}:{frag} (CLI)"
+                    break
 
     threshold = args.min_severity
     live = [f for f in findings if not f.allowed]

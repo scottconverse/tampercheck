@@ -79,3 +79,37 @@ def test_json_schema_stable():
 def test_version_flag():
     proc = run_cli("--version")
     assert proc.returncode == 0
+
+
+DELETION = (FIXTURES / "test-deleted" / "python-flag.diff")
+
+
+def test_allow_flag_suppresses_matching_kind_and_path():
+    proc = run_cli("--allow", "test-deleted:test_user.py",
+                   stdin=DELETION.read_text())
+    assert proc.returncode == 0
+    assert "ALLOWED" in proc.stdout
+
+
+def test_allow_flag_wrong_kind_does_not_suppress():
+    proc = run_cli("--allow", "test-skipped:test_user.py",
+                   stdin=DELETION.read_text())
+    assert proc.returncode == 1
+
+
+def test_allow_flag_wrong_path_does_not_suppress():
+    proc = run_cli("--allow", "test-deleted:some_other_file.py",
+                   stdin=DELETION.read_text())
+    assert proc.returncode == 1
+
+
+def test_allow_flag_malformed_exits_2():
+    proc = run_cli("--allow", "test-deleted", stdin=DELETION.read_text())
+    assert proc.returncode == 2
+
+
+def test_deletion_finding_prints_its_own_remedy():
+    proc = run_cli(stdin=DELETION.read_text())
+    assert proc.returncode == 1
+    assert "tampercheck: allow test_user.py" in proc.stdout
+    assert "--allow test-deleted:test_user.py" in proc.stdout

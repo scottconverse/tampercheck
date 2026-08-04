@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tampercheck"
-version = "0.1.0"
+version = "0.1.1"
 description = "Reads a code change and reports whether it weakened the project's own verification — deleted tests, focused/skipped tests, forced-success expressions, hollowed assertions, swallowed errors."
 readme = "README.md"
 license = "Apache-2.0"
