@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tampercheck — did this change weaken your tests?</title>
+<meta name="description" content="A deterministic diff check that catches deleted, skipped, and focused tests, forced-success expressions, hollowed assertions, and swallowed errors — before a green run stops meaning anything.">
+<style>
+:root{
+  --bg:#faf9f7; --surface:#ffffff; --ink:#1c1c1a; --ink-soft:#57534e; --ink-faint:#79716b;
+  --border:#e5e2dc; --border-strong:#d6d2ca;
+  --red:#b42318; --red-soft:#fdf1f0; --green:#177245; --green-soft:#eef7f1;
+  --amber:#946200; --amber-soft:#fbf4e6;
+  --term-bg:#191817; --term-ink:#d6d3cd; --term-faint:#8a867e;
+  --term-red:#ff8a7a; --term-green:#7fd7a4; --term-amber:#e8c06a;
+  --mono:ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --w:72rem;
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;font-size:1.0625rem}
+a{color:inherit}
+a:focus-visible,button:focus-visible{outline:2px solid var(--red);outline-offset:3px;border-radius:2px}
+code,pre,kbd{font-family:var(--mono)}
+.wrap{max-width:var(--w);margin:0 auto;padding:0 1.25rem}
+
+/* nav */
+nav{position:sticky;top:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);z-index:10}
+.nav-in{display:flex;align-items:center;gap:1.5rem;padding:.8rem 1.25rem;max-width:var(--w);margin:0 auto}
+.brand{font-family:var(--mono);font-weight:700;font-size:1.05rem;text-decoration:none;letter-spacing:-.01em}
+.brand b{color:var(--red)}
+.nav-links{display:flex;gap:1.25rem;margin-left:auto;align-items:center}
+.nav-links a{text-decoration:none;color:var(--ink-soft);font-size:.92rem}
+.nav-links a:hover{color:var(--ink)}
+.nav-cta{border:1px solid var(--border-strong);padding:.35rem .8rem;border-radius:6px;color:var(--ink)!important;font-weight:600}
+.nav-cta:hover{border-color:var(--ink)}
+@media(max-width:44rem){.nav-links a:not(.nav-cta){display:none}}
+
+/* hero */
+.hero{padding:4.5rem 1.25rem 3.5rem}
+.hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:3rem;align-items:center}
+@media(max-width:56rem){.hero-grid{grid-template-columns:1fr}}
+.kicker{font-family:var(--mono);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--red);font-weight:700}
+h1{font-size:clamp(2rem,4.6vw,3.1rem);line-height:1.12;letter-spacing:-.02em;margin:.7rem 0 1.1rem;font-weight:800}
+.lede{font-size:1.15rem;color:var(--ink-soft);max-width:34em}
+.cta-row{display:flex;gap:.8rem;margin-top:1.8rem;flex-wrap:wrap}
+.btn{display:inline-block;padding:.65rem 1.15rem;border-radius:8px;text-decoration:none;font-weight:650;font-size:.98rem}
+.btn-primary{background:var(--ink);color:var(--bg);border:1px solid var(--ink)}
+.btn-primary:hover{background:#000}
+.btn-ghost{border:1px solid var(--border-strong);color:var(--ink)}
+.btn-ghost:hover{border-color:var(--ink)}
+
+/* terminal */
+.term{background:var(--term-bg);border-radius:10px;box-shadow:0 20px 50px -18px rgba(28,25,23,.45);overflow:hidden;font-size:.83rem}
+.term-bar{display:flex;gap:.4rem;padding:.6rem .9rem;border-bottom:1px solid #2c2a28}
+.term-bar span{width:.65rem;height:.65rem;border-radius:50%;background:#3d3a37}
+.term pre{padding:1rem 1.1rem 1.2rem;overflow-x:auto;color:var(--term-ink);line-height:1.55}
+.term .c{color:var(--term-faint)}
+.term .del{color:var(--term-red)}
+.term .add{color:var(--term-green)}
+.term .crit{color:var(--term-red);font-weight:700}
+.term .warn{color:var(--term-amber)}
+.term .ok{color:var(--term-green)}
+
+/* proof strip */
+.proof{border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface)}
+.proof-in{display:flex;flex-wrap:wrap;gap:.4rem 2.2rem;padding:1rem 1.25rem;max-width:var(--w);margin:0 auto;justify-content:center}
+.proof-in span{font-family:var(--mono);font-size:.82rem;color:var(--ink-faint)}
+.proof-in b{color:var(--ink);font-weight:650}
+
+/* sections */
+section{padding:4.2rem 0}
+.sec-kicker{font-family:var(--mono);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:700}
+h2{font-size:clamp(1.5rem,3vw,2.1rem);letter-spacing:-.015em;margin:.5rem 0 1rem;font-weight:750}
+.sec-lede{color:var(--ink-soft);max-width:44em}
+
+/* problem */
+.problem{background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.prob-grid{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;margin-top:2rem}
+@media(max-width:52rem){.prob-grid{grid-template-columns:1fr}}
+.prob-col h3{font-size:1.02rem;margin-bottom:.6rem}
+.prob-col p{color:var(--ink-soft);font-size:.98rem}
+.prob-col + .prob-col{border-left:3px solid var(--red);padding-left:1.5rem}
+@media(max-width:52rem){.prob-col + .prob-col{border-left:none;padding-left:0;border-top:3px solid var(--red);padding-top:1.5rem}}
+
+/* detections table */
+.det-table{width:100%;border-collapse:collapse;margin-top:2rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:.95rem}
+.det-wrap{overflow-x:auto;border-radius:10px}
+.det-table th{font-family:var(--mono);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;text-align:left;color:var(--ink-faint);padding:.7rem .9rem;border-bottom:1px solid var(--border);background:var(--bg)}
+.det-table td{padding:.65rem .9rem;border-bottom:1px solid var(--border);vertical-align:top}
+.det-table tr:last-child td{border-bottom:none}
+.det-table code{font-size:.85em;background:var(--bg);padding:.1em .35em;border-radius:4px;border:1px solid var(--border)}
+.pill{font-family:var(--mono);font-size:.72rem;font-weight:700;padding:.15em .55em;border-radius:99px;white-space:nowrap}
+.pill-crit{background:var(--red-soft);color:var(--red)}
+.pill-high{background:var(--amber-soft);color:var(--amber)}
+.pill-med{background:var(--green-soft);color:var(--green)}
+.det-name{font-family:var(--mono);font-weight:650;white-space:nowrap}
+
+/* how it works */
+.how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:2rem}
+@media(max-width:56rem){.how-grid{grid-template-columns:1fr}}
+.how-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.3rem}
+.how-card h3{font-size:.98rem;margin-bottom:.5rem;display:flex;align-items:baseline;gap:.5rem}
+.how-card h3 .n{font-family:var(--mono);color:var(--red);font-weight:700;font-size:.85rem}
+.how-card pre{background:var(--term-bg);color:var(--term-ink);font-size:.78rem;padding:.8rem .9rem;border-radius:7px;overflow-x:auto;margin-top:.8rem;line-height:1.5}
+.how-card p{font-size:.92rem;color:var(--ink-soft)}
+.exit-row{display:flex;gap:1rem;margin-top:2.2rem;flex-wrap:wrap}
+.exit{flex:1;min-width:14rem;border-radius:10px;padding:1.1rem 1.2rem;border:1px solid var(--border);background:var(--surface)}
+.exit .code{font-family:var(--mono);font-size:1.6rem;font-weight:800;font-variant-numeric:tabular-nums}
+.exit-0 .code{color:var(--green)} .exit-1 .code{color:var(--amber)} .exit-2 .code{color:var(--red)}
+.exit p{font-size:.9rem;color:var(--ink-soft);margin-top:.3rem}
+.exit b{color:var(--ink)}
+
+/* measured */
+.measured{background:var(--term-bg);color:var(--term-ink)}
+.measured .sec-kicker{color:var(--term-amber)}
+.measured h2{color:#fff}
+.measured .sec-lede{color:var(--term-ink)}
+.stat-row{display:flex;gap:2.5rem;flex-wrap:wrap;margin:2.4rem 0 1.8rem}
+.stat .num{font-family:var(--mono);font-size:2.4rem;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat .num em{font-style:normal;color:var(--term-green)}
+.stat .lbl{font-size:.88rem;color:var(--term-faint);max-width:16em}
+.measured .note{font-size:.95rem;color:var(--term-ink);max-width:46em;border-left:3px solid var(--term-amber);padding-left:1.2rem}
+.measured a{color:var(--term-green)}
+
+/* honesty */
+.honest-box{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--amber);border-radius:10px;padding:1.6rem 1.8rem;margin-top:2rem;max-width:52em}
+.honest-box ul{padding-left:1.2rem;color:var(--ink-soft);font-size:.97rem;display:grid;gap:.45rem;margin-top:.8rem}
+
+/* family */
+.fam-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-top:2rem}
+@media(max-width:56rem){.fam-grid{grid-template-columns:1fr}}
+.fam{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.3rem;text-decoration:none;display:block}
+.fam:hover{border-color:var(--ink)}
+.fam .fam-k{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:700}
+.fam h3{font-family:var(--mono);font-size:1rem;margin:.4rem 0 .4rem}
+.fam p{font-size:.9rem;color:var(--ink-soft)}
+
+/* quickstart */
+.qs{background:var(--surface);border-top:1px solid var(--border)}
+.qs-grid{display:grid;grid-template-columns:1fr 1fr;gap:2.5rem;margin-top:2rem;align-items:start}
+@media(max-width:52rem){.qs-grid{grid-template-columns:1fr}}
+.qs pre{background:var(--term-bg);color:var(--term-ink);padding:1.1rem 1.2rem;border-radius:9px;font-size:.85rem;overflow-x:auto;line-height:1.7}
+.qs pre .c{color:var(--term-faint)}
+.qs h3{font-size:1rem;margin-bottom:.7rem}
+.qs p{font-size:.95rem;color:var(--ink-soft);margin-bottom:1rem}
+
+/* footer */
+footer{border-top:1px solid var(--border);padding:2.2rem 0 3rem;color:var(--ink-faint);font-size:.9rem}
+.foot-in{display:flex;flex-wrap:wrap;gap:1rem 2rem;justify-content:space-between;align-items:baseline}
+.foot-links{display:flex;gap:1.5rem;flex-wrap:wrap}
+.foot-links a{color:var(--ink-soft);text-decoration:none}
+.foot-links a:hover{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<nav aria-label="Main">
+  <div class="nav-in">
+    <a class="brand" href="#top">tamper<b>check</b></a>
+    <div class="nav-links">
+      <a href="#detections">Detections</a>
+      <a href="#how">How it works</a>
+      <a href="#measured">Measured</a>
+      <a href="#install">Install</a>
+      <a class="nav-cta" href="https://github.com/scottconverse/tampercheck">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero wrap" id="top">
+  <div class="hero-grid">
+    <div>
+      <p class="kicker">verification integrity, checked per diff</p>
+      <h1>Did this change weaken your tests?</h1>
+      <p class="lede">An AI coding agent told to “make the tests pass” has two options: fix the
+      code, or make the tests stop checking. tampercheck reads the diff and catches the second
+      one — deleted tests, <code>.only</code>, <code>|| true</code>, hollowed assertions,
+      swallowed errors — before a green run stops meaning anything.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#install">Install in 10 seconds</a>
+        <a class="btn btn-ghost" href="https://github.com/scottconverse/tampercheck">View source</a>
+      </div>
+    </div>
+    <div class="term" role="img" aria-label="Terminal showing a diff that replaces a real assertion with assert True, and tampercheck flagging it as critical">
+      <div class="term-bar"><span></span><span></span><span></span></div>
+      <pre>$ git diff | tampercheck
+
+<span class="c">tests/test_auth.py</span>
+<span class="del">-    assert login("u", "p") is True</span>
+<span class="add">+    assert True</span>
+
+<span class="crit">CRITICAL unconditional-success  tests/test_auth.py:2</span>
+         assert True
+         why it matters: `assert True` can never fail;
+         it stands where a real assertion should be.
+<span class="warn">HIGH     assertion-weakened  tests/test_auth.py</span>
+         1 assertion removed, 0 substantive added
+
+tampercheck: 2 finding(s) at or above --min-severity high
+<span class="c">$ echo $?</span>
+<span class="crit">1</span></pre>
+    </div>
+  </div>
+</header>
+
+<div class="proof" aria-label="Facts">
+  <div class="proof-in">
+    <span><b>Deterministic</b> — no LLM calls</span>
+    <span><b>Offline</b> — reads a diff, nothing else</span>
+    <span><b>Provider-agnostic</b> — Claude, Codex, or human</span>
+    <span><b>Python · JS/TS · Rust · shell/CI</b></span>
+    <span><b>Apache-2.0</b></span>
+  </div>
+</div>
+
+<section class="problem">
+  <div class="wrap">
+    <p class="sec-kicker">the problem</p>
+    <h2>Green was engineered, not earned</h2>
+    <div class="prob-grid">
+      <div class="prob-col">
+        <h3>Standard tooling cannot see this</h3>
+        <p>A linter checks the code that exists — it has no opinion about the test that was
+        removed. CI reports green, because green is exactly what was engineered. The only
+        defence left is a human reading every diff, which is the thing that stops happening
+        as agent output scales.</p>
+      </div>
+      <div class="prob-col">
+        <h3>tampercheck reads the change itself</h3>
+        <p>It asks one question: <b>did this change make the checking weaker than it was
+        before?</b> Every detection fires only on lines the change added — pre-existing
+        conditions in a legacy codebase are never reported, which is what makes it
+        survivable as a required CI check.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="detections">
+  <div class="wrap">
+    <p class="sec-kicker">coverage</p>
+    <h2>The eight detections</h2>
+    <p class="sec-lede">Each one catches a specific way a change can produce a green run
+    without earning it. Severity decides what fails the build — the default gate is
+    <code>high</code>.</p>
+    <div class="det-wrap">
+    <table class="det-table">
+      <thead><tr><th>Detection</th><th>Severity</th><th>What it catches</th></tr></thead>
+      <tbody>
+        <tr><td class="det-name">test-deleted</td><td><span class="pill pill-crit">critical</span></td><td>A test file removed by this change</td></tr>
+        <tr><td class="det-name">test-focused</td><td><span class="pill pill-crit">critical</span></td><td>A new <code>.only</code> / <code>fit</code> / <code>fdescribe</code> — silently excludes every other test while still reporting green</td></tr>
+        <tr><td class="det-name">unconditional-success</td><td><span class="pill pill-crit">critical</span></td><td>New <code>|| true</code> on a test command, bare <code>exit 0</code> in CI, <code>process.exit(0)</code> / <code>sys.exit(0)</code> in tests, <code>assert True</code></td></tr>
+        <tr><td class="det-name">test-skipped</td><td><span class="pill pill-high">high</span></td><td>A new unconditional <code>.skip</code> / <code>.todo</code> / <code>xit</code> / <code>@pytest.mark.skip</code> / <code>#[ignore]</code></td></tr>
+        <tr><td class="det-name">test-filtered</td><td><span class="pill pill-high">high</span></td><td>A new test-selection filter — <code>--grep</code>, <code>pytest -k</code>, <code>jest -t</code>, <code>cargo test &lt;name&gt;</code> — shrinking what runs without changing what's reported</td></tr>
+        <tr><td class="det-name">assertion-weakened</td><td><span class="pill pill-high">high</span></td><td>A test file that removes materially more executable assertions than it adds — tests still run, still pass, just check less</td></tr>
+        <tr><td class="det-name">swallowed-error</td><td><span class="pill pill-high">high</span></td><td>A new empty <code>catch</code>, broad <code>except: pass</code>, or empty <code>Err(_) =&gt; {}</code> arm</td></tr>
+        <tr><td class="det-name">placeholder</td><td><span class="pill pill-med">medium</span></td><td>A new <code>TODO</code> / <code>FIXME</code> / <code>not implemented</code> / <code>todo!()</code> standing where behaviour should be</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<section id="how" style="padding-top:0">
+  <div class="wrap">
+    <p class="sec-kicker">workflow</p>
+    <h2>Any diff in, one honest verdict out</h2>
+    <div class="how-grid">
+      <div class="how-card">
+        <h3><span class="n">in</span> Three ways to feed it a change</h3>
+        <pre>git diff | tampercheck
+tampercheck --from main --to HEAD
+tampercheck --pr 123   <span class="c"># via gh</span></pre>
+        <p>Local working tree, any two refs, or a GitHub pull request. Add
+        <code>--json</code> for a stable machine-readable schema.</p>
+      </div>
+      <div class="how-card">
+        <h3><span class="n">gate</span> Justification travels with the diff</h3>
+        <pre><span class="c"># tampercheck: allow test_cart.py</span>
+<span class="c">#   superseded by test_cart_v2.py</span></pre>
+        <p>Sometimes deleting a test is correct. Acknowledge it in the change itself —
+        visible to reviewers, unable to drift like an ignore-file. Findings print their
+        own remedy, and <code>--allow KIND:PATH</code> covers one-off runs.</p>
+      </div>
+      <div class="how-card">
+        <h3><span class="n">out</span> A crashed check is never a pass</h3>
+        <p>The exit codes are the contract, and the tool ships a test that forces an
+        internal failure to prove <b>2</b> stays distinct from <b>1</b>. A verification
+        tool that fails open manufactures false confidence.</p>
+      </div>
+    </div>
+    <div class="exit-row">
+      <div class="exit exit-0"><span class="code">0</span><p><b>Clean.</b> Nothing at or above the failure threshold — the receipt that checking didn't get weaker.</p></div>
+      <div class="exit exit-1"><span class="code">1</span><p><b>Findings.</b> The change weakened verification; fix it or justify it in the diff.</p></div>
+      <div class="exit exit-2"><span class="code">2</span><p><b>Tool failure.</b> Bad input or git error — loudly distinct from a clean result, by contract and by test.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="measured" id="measured">
+  <div class="wrap">
+    <p class="sec-kicker">evidence, not vibes</p>
+    <h2>Tuned on 1,331 real commits, proven detector by detector</h2>
+    <p class="sec-lede">A checker earns trust by staying quiet on honest work. The patterns
+    were run against the full recent history of three actively developed repositories and
+    tightened until ordinary changes stopped lighting it up.</p>
+    <div class="stat-row">
+      <div class="stat"><div class="num">1,331</div><div class="lbl">real historical commits scanned for false positives</div></div>
+      <div class="stat"><div class="num">5.6% <em>→ 1.4%</em></div><div class="lbl">commits gating at the default threshold, before → after corpus tuning</div></div>
+      <div class="stat"><div class="num">~0.7%</div><div class="lbl">measured genuine false positives — over half the residual is real broad-except swallows</div></div>
+      <div class="stat"><div class="num">8 / 8</div><div class="lbl">detections proven red→green through the real CLI, in CI, on every push</div></div>
+    </div>
+    <p class="note">Every detector has a paired fixture — a diff that must be flagged and a
+    near-identical clean twin that must not be — and CI demonstrates each one observably
+    firing before it is trusted. A detector that has never been seen going red is not proven
+    to work. Tuning decisions are recorded
+    <a href="https://github.com/scottconverse/tampercheck#recorded-decisions">next to the patterns they shaped</a>.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="sec-kicker">honesty</p>
+    <h2>What it deliberately does not catch</h2>
+    <div class="honest-box">
+      <p>tampercheck is a line-oriented diff check. It does not run your tests and does not
+      judge code quality. It will not catch:</p>
+      <ul>
+        <li>a test whose assertion is <em>subtly wrong</em> rather than removed</li>
+        <li>a new test that also passes on the pre-change code and therefore proves nothing — that requires executing tests against the base commit</li>
+        <li>mocking a dependency so broadly the test can't fail</li>
+        <li>slow architectural degradation that passes honest tests</li>
+      </ul>
+      <p style="margin-top:.9rem">It reduces the cheapest forms of verification tampering to
+      zero cost for a reviewer. It does not replace the reviewer.</p>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <p class="sec-kicker">works with</p>
+    <h2>One layer of a three-layer toolset</h2>
+    <p class="sec-lede">tampercheck stands alone — any repo, any CI, any author. It also slots
+    into a layered stack for keeping AI-agent work honest.</p>
+    <div class="fam-grid">
+      <a class="fam" href="https://github.com/scottconverse/dev-rigor-stack-lite">
+        <span class="fam-k">layer 1 · discipline</span>
+        <h3>dev-rigor-stack-lite</h3>
+        <p>Evidence-first agent skills whose verify and merge gates cite tampercheck receipts when the tool is present.</p>
+      </a>
+      <a class="fam" href="https://github.com/scottconverse/deterministic-detector">
+        <span class="fam-k">layer 3 · enforcement</span>
+        <h3>deterministic-detector</h3>
+        <p>Wires a pinned tampercheck lane into a repo's CI with <code>/install-detector</code> — on a machine no agent controls.</p>
+      </a>
+      <a class="fam" href="https://github.com/scottconverse/rigor-suite">
+        <span class="fam-k">the set</span>
+        <h3>rigor-suite</h3>
+        <p>One command installs all three layers, pinned, without mixing them.</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="qs" id="install">
+  <div class="wrap">
+    <p class="sec-kicker">quick start</p>
+    <h2>Ten seconds to the first verdict</h2>
+    <div class="qs-grid">
+      <div>
+        <h3>Run it</h3>
+        <p>Zero-install via <a href="https://docs.astral.sh/uv/">uv</a>, or install normally.
+        Then pipe it any diff.</p>
+        <pre>uvx tampercheck --version
+<span class="c"># or</span>
+pip install tampercheck
+
+git diff | tampercheck</pre>
+      </div>
+      <div>
+        <h3>Gate a pull request</h3>
+        <p>Pin the version in CI so a locally edited copy can never change what's enforced.</p>
+        <pre>- uses: actions/checkout@v4
+  with: { fetch-depth: 0 }
+- run: |
+    git diff origin/main...HEAD \
+      | uvx tampercheck==0.1.1</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-in">
+    <span><span class="brand" style="font-size:.95rem">tamper<b style="color:var(--red)">check</b></span> · Apache-2.0 · Scott Converse</span>
+    <div class="foot-links">
+      <a href="https://github.com/scottconverse/tampercheck">Repository</a>
+      <a href="https://pypi.org/project/tampercheck/">PyPI</a>
+      <a href="https://github.com/scottconverse/tampercheck/releases">Releases</a>
+      <a href="https://github.com/scottconverse/tampercheck/issues">Issues</a>
+      <a href="https://github.com/scottconverse/tampercheck/blob/main/LICENSE">License</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
