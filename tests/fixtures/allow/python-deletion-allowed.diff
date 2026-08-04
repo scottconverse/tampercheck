@@ -1,0 +1,17 @@
+diff --git a/tests/test_user.py b/tests/test_user.py
+deleted file mode 100644
+index 1234567..0000000
+--- a/tests/test_user.py
++++ /dev/null
+@@ -1,2 +0,0 @@
+-def test_user():
+-    assert make_user().name == "x"
+diff --git a/tests/test_user_v2.py b/tests/test_user_v2.py
+new file mode 100644
+index 0000000..1234567
+--- /dev/null
++++ b/tests/test_user_v2.py
+@@ -0,0 +1,3 @@
++# tampercheck: allow test_user.py superseded by this file
++def test_user_v2():
++    assert make_user().name == "x"

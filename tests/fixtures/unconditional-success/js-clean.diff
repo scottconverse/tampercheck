@@ -1,0 +1,9 @@
+diff --git a/tests/exit.test.ts b/tests/exit.test.ts
+index 1234567..89abcde 100644
+--- a/tests/exit.test.ts
++++ b/tests/exit.test.ts
+@@ -1,3 +1,4 @@
+ test("shutdown", () => {
+   run();
++  process.stdout.write("done");
+ });

@@ -1,0 +1,30 @@
+# tampercheck CI job — drop-in for deterministic-detector's install-detector
+# skill (or any repo directly).
+#
+# Unlike the mutation-report job, this one is GATING by design: weakened
+# verification is exactly the thing that must not merge silently. The
+# legitimate escape valve is the inline `tampercheck: allow <reason>` marker,
+# which travels with the diff and is visible to reviewers.
+#
+# Pin the version. CI must install tampercheck from the registry, never from
+# the working tree — so an agent editing a local copy cannot change what CI
+# enforces.
+
+name: tampercheck
+
+on:
+  pull_request:
+
+jobs:
+  tampercheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+      - name: Did this change weaken verification?
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          git diff --find-renames origin/${{ github.base_ref }}...HEAD \
+            | uvx tampercheck==0.1.0

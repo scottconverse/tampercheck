@@ -1,0 +1,2 @@
+this is not a unified diff at all
+just some prose that should trigger exit code 2

@@ -1,0 +1,9 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 1234567..89abcde 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -10,3 +10,4 @@
+ mod tests {
+     #[test]
++    #[inline]
+     fn slow_path() {

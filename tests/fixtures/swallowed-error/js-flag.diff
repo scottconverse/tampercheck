@@ -1,0 +1,20 @@
+diff --git a/src/fetch.ts b/src/fetch.ts
+index 1234567..89abcde 100644
+--- a/src/fetch.ts
++++ b/src/fetch.ts
+@@ -1,4 +1,6 @@
+ async function get(url) {
+   const r = await fetch(url);
++  try { parse(r); } catch (e) {}
++  fallback();
+   return r;
+ }
+@@ -10,4 +12,8 @@
+ async function post(url) {
+   const r = await fetch(url);
++  try {
++    parse(r);
++  } catch (e) {
++  }
+   return r;
+ }

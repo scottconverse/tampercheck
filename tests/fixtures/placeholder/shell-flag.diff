@@ -1,0 +1,8 @@
+diff --git a/scripts/deploy.sh b/scripts/deploy.sh
+index 1234567..89abcde 100644
+--- a/scripts/deploy.sh
++++ b/scripts/deploy.sh
+@@ -1,2 +1,3 @@
+ #!/bin/sh
++echo "not implemented"
+ rsync -a build/ host:/srv/

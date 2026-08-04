@@ -1,0 +1,10 @@
+diff --git a/tests/test_shutdown.py b/tests/test_shutdown.py
+index 1234567..89abcde 100644
+--- a/tests/test_shutdown.py
++++ b/tests/test_shutdown.py
+@@ -1,3 +1,5 @@
+ def test_shutdown():
+     run()
++    sys.exit(0)
++    assert True
+     check()

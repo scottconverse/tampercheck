@@ -1,0 +1,12 @@
+diff --git a/tests/api.test.ts b/tests/api.test.ts
+index 1234567..89abcde 100644
+--- a/tests/api.test.ts
++++ b/tests/api.test.ts
+@@ -1,5 +1,5 @@
+ test("status", async () => {
+   const r = await call();
+-  expect(r.status).toBe(200);
+-  expect(r.ok).toBe(true);
++  expect(r.statusCode).toBe(200);
++  expect(r.ok).toBe(true);
+ });

@@ -1,0 +1,8 @@
+diff --git a/src/retry.py b/src/retry.py
+index 1234567..89abcde 100644
+--- a/src/retry.py
++++ b/src/retry.py
+@@ -1,2 +1,3 @@
+ def retry(fn):
++    return with_backoff(fn)
+     return fn()

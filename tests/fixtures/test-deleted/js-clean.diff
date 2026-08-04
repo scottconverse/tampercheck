@@ -1,0 +1,8 @@
+diff --git a/src/user.ts b/src/user.ts
+deleted file mode 100644
+index 1234567..0000000
+--- a/src/user.ts
++++ /dev/null
+@@ -1,2 +0,0 @@
+-export function makeUser() {
+-}

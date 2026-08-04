@@ -1,0 +1,8 @@
+diff --git a/src/user_util.py b/src/user_util.py
+deleted file mode 100644
+index 1234567..0000000
+--- a/src/user_util.py
++++ /dev/null
+@@ -1,2 +0,0 @@
+-def make_user():
+-    return User("x")

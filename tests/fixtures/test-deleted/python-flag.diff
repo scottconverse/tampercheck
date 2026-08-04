@@ -1,0 +1,8 @@
+diff --git a/tests/test_user.py b/tests/test_user.py
+deleted file mode 100644
+index 1234567..0000000
+--- a/tests/test_user.py
++++ /dev/null
+@@ -1,2 +0,0 @@
+-def test_user():
+-    assert make_user().name == "x"

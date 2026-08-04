@@ -1,0 +1,9 @@
+diff --git a/tests/test_token.py b/tests/test_token.py
+index 1234567..89abcde 100644
+--- a/tests/test_token.py
++++ b/tests/test_token.py
+@@ -1,3 +1,4 @@
+ import pytest
+
++@pytest.mark.skip(reason="flaky")
+ def test_refresh():

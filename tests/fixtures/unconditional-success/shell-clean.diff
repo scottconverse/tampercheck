@@ -1,0 +1,8 @@
+diff --git a/scripts/run_tests.sh b/scripts/run_tests.sh
+index 1234567..89abcde 100644
+--- a/scripts/run_tests.sh
++++ b/scripts/run_tests.sh
+@@ -1,2 +1,2 @@
+ #!/bin/sh
+-pytest tests/
++pytest tests/ -v

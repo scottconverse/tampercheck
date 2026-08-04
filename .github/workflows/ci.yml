@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Unit tests (paired fixtures, exit-code contract)
+        run: uv run pytest -q
+      - name: Mutation proof (every detector observed red, then green, via the CLI)
+        run: uv run python scripts/mutation_proof.py
+
+  dogfood:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+      - name: tampercheck its own PR
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD | uv run tampercheck

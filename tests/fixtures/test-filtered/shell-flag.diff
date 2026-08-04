@@ -1,0 +1,8 @@
+diff --git a/scripts/test.sh b/scripts/test.sh
+index 1234567..89abcde 100644
+--- a/scripts/test.sh
++++ b/scripts/test.sh
+@@ -1,2 +1,2 @@
+ #!/bin/sh
+-python -m pytest tests/
++python -m pytest tests/ -k "not slow"

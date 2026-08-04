@@ -1,0 +1,8 @@
+diff --git a/src/__tests__/user.test.ts b/src/__tests__/user.test.ts
+deleted file mode 100644
+index 1234567..0000000
+--- a/src/__tests__/user.test.ts
++++ /dev/null
+@@ -1,2 +0,0 @@
+-it("makes a user", () => {
+-});

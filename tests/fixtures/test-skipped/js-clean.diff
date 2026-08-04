@@ -1,0 +1,9 @@
+diff --git a/tests/token.spec.js b/tests/token.spec.js
+index 1234567..89abcde 100644
+--- a/tests/token.spec.js
++++ b/tests/token.spec.js
+@@ -1,3 +1,4 @@
+ describe("token", () => {
+   it("refreshes", () => {
++    const token = makeToken();
+     expect(refresh()).toBe(true);
